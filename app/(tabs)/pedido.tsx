@@ -8,10 +8,12 @@ import { useOrder, CompletedOrder } from '../../context/OrderContext';
 import { EmptyState } from '../../components/EmptyState';
 
 export default function PedidoScreen() {
-  const { orderHistory, currentOrder, loadOrderHistory } = useOrder();
+  const { orderHistory, currentOrder, loadOrderHistory, updateOrderStatus } = useOrder();
   const [currentOrderState, setCurrentOrderState] = useState<CompletedOrder | null>(null);
   const [status, setStatus] = useState('em_preparacao');
   const [isConfirming, setIsConfirming] = useState(false);
+  const activeOrder =
+    currentOrderState || currentOrder || (orderHistory.length > 0 ? orderHistory[orderHistory.length - 1] : null);
 
   useEffect(() => {
     loadOrderHistory();
@@ -60,10 +62,12 @@ export default function PedidoScreen() {
   };
 
   const handleConfirmPickup = async () => {
-    if (!currentOrderState) return;
+    if (!activeOrder) return;
 
     setIsConfirming(true);
     try {
+      await updateOrderStatus(activeOrder.id, 'retirado');
+      setCurrentOrderState((prev) => (prev ? { ...prev, status: 'retirado' } : prev));
       setStatus('retirado');
       Alert.alert('Sucesso!', 'Pedido retirado com sucesso! Veja seu historico.', [
         {
@@ -80,7 +84,7 @@ export default function PedidoScreen() {
     }
   };
 
-  if (!currentOrder) {
+  if (!activeOrder) {
     return (
       <View style={styles.container}>
         <EmptyState
@@ -165,7 +169,7 @@ export default function PedidoScreen() {
 
       {/* Items */}
       <InfoCard title="Itens do pedido">
-        {currentOrderState.items.map((item, index) => (
+        {activeOrder.items.map((item, index) => (
           <View key={index} style={styles.itemRow}>
             <Text style={styles.itemName}>{item.name}</Text>
             <Text style={styles.itemPrice}>R$ {item.price.toFixed(2)}</Text>
@@ -174,13 +178,13 @@ export default function PedidoScreen() {
         <View style={styles.divider} />
         <View style={styles.itemRow}>
           <Text style={styles.totalLabel}>Total:</Text>
-          <Text style={styles.totalPrice}>R$ {currentOrderState.total.toFixed(2)}</Text>
+          <Text style={styles.totalPrice}>R$ {activeOrder.total.toFixed(2)}</Text>
         </View>
       </InfoCard>
 
       {/* Details */}
       <InfoCard title="Detalhes do pedido">
-        <Text style={styles.text}>Data: {new Date(currentOrderState.createdAt).toLocaleString('pt-BR')}</Text>
+        <Text style={styles.text}>Data: {new Date(activeOrder.createdAt).toLocaleString('pt-BR')}</Text>
         <Text style={styles.text}>Retirada: Cantina - Unidade Paulista</Text>
         <Text style={styles.text}>Pagamento: Pre-pagamento no app</Text>
         <View style={styles.statusBadge}>

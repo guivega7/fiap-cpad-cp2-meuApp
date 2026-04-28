@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from './AuthContext';
+import { deleteItem, getItem, saveItem } from '../services/platformStorage';
 
 export type OrderItem = {
   id: string;
@@ -28,10 +28,27 @@ type OrderContextType = {
   currentOrder: CompletedOrder | null;
   completeOrder: () => Promise<void>;
   loadOrderHistory: () => Promise<void>;
+  updateOrderStatus: (orderId: string, status: CompletedOrder['status']) => Promise<void>;
 };
 
 const OrderContext = createContext<OrderContextType | undefined>(undefined);
 const ORDERS_HISTORY_KEY = 'app_orders_history';
+
+const readOrdersHistory = async (): Promise<CompletedOrder[]> => {
+  const data = await getItem(ORDERS_HISTORY_KEY);
+  if (!data) return [];
+
+  try {
+    return JSON.parse(data) as CompletedOrder[];
+  } catch (error) {
+    console.error('Error parsing order history:', error);
+    return [];
+  }
+};
+
+const writeOrdersHistory = async (orders: CompletedOrder[]): Promise<void> => {
+  await saveItem(ORDERS_HISTORY_KEY, JSON.stringify(orders));
+};
 
 export function OrderProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
@@ -53,17 +70,9 @@ export function OrderProvider({ children }: { children: ReactNode }) {
   async function loadOrderHistory() {
     try {
       setIsLoading(true);
-      const data = await AsyncStorage.getItem(ORDERS_HISTORY_KEY);
-      if (data) {
-        const allOrders = JSON.parse(data) as CompletedOrder[];
-        // Filter orders for current user
-        const userOrders = allOrders.filter(order =>
-          order.id.includes(user?.id || '')
-        );
-        setOrderHistory(userOrders);
-      } else {
-        setOrderHistory([]);
-      }
+      const allOrders = await readOrdersHistory();
+      const userOrders = allOrders.filter(order => order.id.includes(user?.id || ''));
+      setOrderHistory(userOrders);
     } catch (error) {
       console.error('Error loading order history:', error);
     } finally {
@@ -73,7 +82,7 @@ export function OrderProvider({ children }: { children: ReactNode }) {
 
   async function saveOrderHistory(orders: CompletedOrder[]) {
     try {
-      await AsyncStorage.setItem(ORDERS_HISTORY_KEY, JSON.stringify(orders));
+      await writeOrdersHistory(orders);
     } catch (error) {
       console.error('Error saving order history:', error);
     }
@@ -121,8 +130,7 @@ export function OrderProvider({ children }: { children: ReactNode }) {
 
       setCurrentOrder(newOrder);
 
-      const data = await AsyncStorage.getItem(ORDERS_HISTORY_KEY);
-      const allOrders = data ? (JSON.parse(data) as CompletedOrder[]) : [];
+  const allOrders = await readOrdersHistory();
       const updatedAllOrders = [...allOrders, newOrder];
 
       await saveOrderHistory(updatedAllOrders);
@@ -131,6 +139,32 @@ export function OrderProvider({ children }: { children: ReactNode }) {
       clearOrder();
     } catch (error) {
       console.error('Error completing order:', error);
+      throw error;
+    }
+  }
+
+  async function updateOrderStatus(orderId: string, status: CompletedOrder['status']) {
+    if (!user) {
+      throw new Error('Usuario nao autenticado');
+    }
+
+    try {
+      const allOrders = await readOrdersHistory();
+      const updatedAllOrders = allOrders.map((order) =>
+        order.id === orderId
+          ? { ...order, status, updatedAt: new Date().toISOString() }
+          : order
+      );
+
+      await saveOrderHistory(updatedAllOrders);
+      const userOrders = updatedAllOrders.filter((order) => order.id.includes(user.id));
+      setOrderHistory(userOrders);
+
+      if (currentOrder?.id === orderId) {
+        setCurrentOrder((prev) => (prev ? { ...prev, status, updatedAt: new Date().toISOString() } : prev));
+      }
+    } catch (error) {
+      console.error('Error updating order status:', error);
       throw error;
     }
   }
@@ -147,6 +181,7 @@ export function OrderProvider({ children }: { children: ReactNode }) {
         currentOrder,
         completeOrder,
         loadOrderHistory,
+        updateOrderStatus,
       }}
     >
       {children}

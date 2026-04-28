@@ -12,8 +12,11 @@ import { View } from "react-native";
 function RootLayoutNav() {
   const { user, isLoading } = useAuth();
 
+  console.log("[LAYOUT] user:", user?.email || "null", "isLoading:", isLoading);
+
   // Show loading while checking session
   if (isLoading) {
+    console.log("[LAYOUT] Rendering: LoadingSpinner (session check in progress)");
     return (
       <View style={{ flex: 1, backgroundColor: "#0b0b0b", justifyContent: "center" }}>
         <LoadingSpinner message="Carregando..." />
@@ -24,6 +27,7 @@ function RootLayoutNav() {
   // Show appropriate layout based on auth state
   if (!user) {
     // User not authenticated - show auth screens
+    console.log("[LAYOUT] Rendering: Auth screens (no user)");
     return (
       <Stack>
         <Stack.Screen
@@ -37,6 +41,7 @@ function RootLayoutNav() {
   }
 
   // User authenticated - show main app
+  console.log("[LAYOUT] Rendering: Main app (user authenticated)");
   return (
     <Stack>
       <Stack.Screen

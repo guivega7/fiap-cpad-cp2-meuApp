@@ -1,8 +1,9 @@
 /**
- * AsyncStorage service for persisting data
+ * Persistent storage for app data
+ * Uses platform-aware storage to avoid direct dependency on legacy AsyncStorage APIs.
  */
 
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import { deleteItem, getItem, saveItem } from "./platformStorage";
 
 const USERS_KEY = "app_users";
 const ORDERS_KEY = "app_orders";
@@ -32,12 +33,28 @@ export interface OrderItem {
   quantidade: number;
 }
 
+const readJson = async <T>(key: string, fallback: T): Promise<T> => {
+  const data = await getItem(key);
+  if (!data) return fallback;
+
+  try {
+    return JSON.parse(data) as T;
+  } catch (error) {
+    console.error(`Error parsing storage key "${key}":`, error);
+    return fallback;
+  }
+};
+
+const writeJson = async (key: string, value: unknown): Promise<void> => {
+  await saveItem(key, JSON.stringify(value));
+};
+
 /**
  * Users Management
  */
 export const saveUsers = async (users: User[]): Promise<void> => {
   try {
-    await AsyncStorage.setItem(USERS_KEY, JSON.stringify(users));
+    await writeJson(USERS_KEY, users);
   } catch (error) {
     console.error("Error saving users:", error);
     throw error;
@@ -46,8 +63,7 @@ export const saveUsers = async (users: User[]): Promise<void> => {
 
 export const getUsers = async (): Promise<User[]> => {
   try {
-    const data = await AsyncStorage.getItem(USERS_KEY);
-    return data ? JSON.parse(data) : [];
+    return await readJson<User[]>(USERS_KEY, []);
   } catch (error) {
     console.error("Error loading users:", error);
     return [];
@@ -90,29 +106,12 @@ export const updateUser = async (user: User): Promise<void> => {
 };
 
 /**
- * Active User Session
+ * Active User Session - DEPRECATED: Use secureStorage instead
+ * Keeping for backward compatibility but not recommended for new code
  */
-export const saveActiveUser = async (userId: string): Promise<void> => {
-  try {
-    await AsyncStorage.setItem(ACTIVE_USER_KEY, userId);
-  } catch (error) {
-    console.error("Error saving active user:", error);
-    throw error;
-  }
-};
-
-export const getActiveUser = async (): Promise<string | null> => {
-  try {
-    return await AsyncStorage.getItem(ACTIVE_USER_KEY);
-  } catch (error) {
-    console.error("Error getting active user:", error);
-    return null;
-  }
-};
-
 export const clearActiveUser = async (): Promise<void> => {
   try {
-    await AsyncStorage.removeItem(ACTIVE_USER_KEY);
+    await deleteItem(ACTIVE_USER_KEY);
   } catch (error) {
     console.error("Error clearing active user:", error);
     throw error;
@@ -124,7 +123,7 @@ export const clearActiveUser = async (): Promise<void> => {
  */
 export const saveOrders = async (orders: Order[]): Promise<void> => {
   try {
-    await AsyncStorage.setItem(ORDERS_KEY, JSON.stringify(orders));
+    await writeJson(ORDERS_KEY, orders);
   } catch (error) {
     console.error("Error saving orders:", error);
     throw error;
@@ -133,8 +132,7 @@ export const saveOrders = async (orders: Order[]): Promise<void> => {
 
 export const getOrders = async (): Promise<Order[]> => {
   try {
-    const data = await AsyncStorage.getItem(ORDERS_KEY);
-    return data ? JSON.parse(data) : [];
+    return await readJson<Order[]>(ORDERS_KEY, []);
   } catch (error) {
     console.error("Error loading orders:", error);
     return [];
@@ -178,7 +176,7 @@ export const updateOrder = async (order: Order): Promise<void> => {
 
 export const clearAllData = async (): Promise<void> => {
   try {
-    await AsyncStorage.multiRemove([USERS_KEY, ORDERS_KEY, ACTIVE_USER_KEY]);
+    await Promise.all([deleteItem(USERS_KEY), deleteItem(ORDERS_KEY), deleteItem(ACTIVE_USER_KEY)]);
   } catch (error) {
     console.error("Error clearing all data:", error);
     throw error;

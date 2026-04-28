@@ -23,7 +23,7 @@ import { LoadingSpinner } from "../../components/LoadingSpinner";
 import { validateLoginForm } from "../../utils/validation";
 
 export default function LoginScreen() {
-  const { login, error, isLoggingIn, clearError } = useAuth();
+  const { login, error, isLoggingIn, clearError, user } = useAuth();
   const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
   const [errors, setErrors] = useState<Record<string, string | null>>({});
@@ -66,6 +66,12 @@ export default function LoginScreen() {
 
   const hasFormErrors = Object.values(errors).some((err) => err !== null);
   const isFormValid = email && senha && !hasFormErrors;
+
+  useEffect(() => {
+    if (user) {
+      router.replace("/(tabs)");
+    }
+  }, [user]);
 
   return (
     <KeyboardAvoidingView
