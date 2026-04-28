@@ -2,25 +2,22 @@
  * Profile Screen
  */
 
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import React, { useState } from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
   Alert,
-  Modal,
-  KeyboardAvoidingView,
-  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View
 } from 'react-native';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { useAuth } from "../../context/AuthContext";
-import { ValidatedInput } from "../../components/ValidatedInput";
 import { ErrorCard } from "../../components/ErrorCard";
-import { SuccessMessage } from "../../components/SuccessMessage";
 import { LoadingSpinner } from "../../components/LoadingSpinner";
-import { validateNome, getNomeError, getEmailError, getPasswordError } from "../../utils/validation";
+import { SuccessMessage } from "../../components/SuccessMessage";
+import { ValidatedInput } from "../../components/ValidatedInput";
+import { useAuth } from "../../context/AuthContext";
+import { getEmailError, getNomeError, getPasswordError } from "../../utils/validation";
 
 export default function PerfilScreen() {
   const { user, logout, updateProfile, changePassword, error, clearError } = useAuth();
